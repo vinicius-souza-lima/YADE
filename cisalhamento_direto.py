@@ -20,16 +20,18 @@ O.cell.hSize = Matrix3(2, 0, 0,
 
 from yade import pack, plot
 
-# "if 0" para regular, "if 1"para nuvem de esferas
+# Digite "regular" para  empacotamento heaxagonal regular, "nuvem de esferas" para nuvem de esferas aleatória.
+tipo_enpacotamento = "regular"
 
-if 0:
+
+if tipo_enpacotamento == "nuvem de esferas":
 	# cria nuvem de esferas e insere-as na simulação
 	# Damos os cantos, raio médio, variação do raio
 	sp = pack.SpherePack()
 	sp.makeCloud((0, 0, 0), (2, 2, 2), rMean=.1, rRelFuzz=.6, periodic=True)
 	# insere o empacotamento na simulação
 	sp.toSimulation(color=(0, 0, 1))  # azul puro
-else:
+elif tipo_enpacotamento == "regular":
 	# Nesse caso, adiciona empacotamento denso
 	O.bodies.append(pack.regularHexa(pack.inAlignedBox((0, 0, 0), (2, 2, 2)), radius=.1, gap=0, color=(0, 0, 1)))
 
@@ -130,7 +132,7 @@ def addData():
 ## szz(exz), sxz(exz)
 ## tanPhi(i)
 # Note o espaço em 'i ' para que não seja reescrita a entrada i
-plot.plots = {'exz': ('sxz','szz'), 'i ': ('tanPhi',)}
+plot.plots = {'exz': ('sxz','szz'), 'i ': ('tanPhi')}
 
 # Melhor demonstração da rotação das partículas
 Gl1_Sphere.stripes = True
