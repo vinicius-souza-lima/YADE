@@ -31,7 +31,7 @@ if 0:
 	sp.toSimulation(color=(0, 0, 1))  # azul puro
 else:
 	# Nesse caso, adiciona empacotamento denso
-	O.bodies.append(pack.regularHexa(pack.inAlignedBox((0, 0, 0), (2, 2, 2)), radius=.05, gap=0, color=(0, 0, 1)))
+	O.bodies.append(pack.regularHexa(pack.inAlignedBox((0, 0, 0), (2, 2, 2)), radius=.1, gap=0, color=(0, 0, 1)))
 
 # cria empacotamento "denso" ao colocar atrito igual a zero inicialmente
 O.materials[0].frictionAngle = 0
@@ -77,7 +77,7 @@ def checkStress():
 	# Se a tensão média é menor (maior em valor absoluto)  que limitMeanStress, começa o cisalhamento
 	if stress < limitMeanStress:
 		# Aplica deformação à taxa constante da célula periódica
-		O.cell.velGrad = Matrix3(0, 0, 0.09,
+		O.cell.velGrad = Matrix3(0, 0, .1,
 								 0, 0, 0, 
 								 0, 0, 0)
 		# Muda a função chamada pela engine checadora
@@ -94,10 +94,10 @@ def checkStress():
 		# Coloca ângulo de fricção de volta à valor não-nulo
 		# tangensOfFrictionAngle é computado pelo Ip2_* functor do material
 		# Para futuros contatos mudar material (há apenas um material para todas as partículas)
-		O.materials[0].frictionAngle = .3  # radianos
+		O.materials[0].frictionAngle = .5  # radianos
 		# Para contatos existentes, coloca fricção de contato diretamente
 		for i in O.interactions:
-			i.phys.tangensOfFrictionAngle = tan(.3)
+			i.phys.tangensOfFrictionAngle = tan(.5)
 
 
 # Chama a engine checadora periodicamente, durante a fase de cisalhamento
@@ -106,7 +106,7 @@ def checkDistorsion():
 	if abs(O.cell.trsf[0, 2]) > .5:
 		# Salva informação de addData(...) antes de exportar para um arquivo
 		# use O.tags['id'] para diferenciar execuções individuais de cada simulação
-		plot.saveDataTxt(O.tags['id'] + '.txt')
+		plot.saveDataTxt('simulations/'+ O.tags['id'] + '.txt')
 		# Sai do programa
 		#importa sys
 		#sys.exit(0) # Sem erro (0)
@@ -118,7 +118,7 @@ def addData():
 	# Obtém o tensor de tensões (como uma matriz 3x3)
 	stress = sum(normalShearStressTensors(), Matrix3.Zero)
 	# Dá nomes aos valores que estamos interessados e os salva.
-	plot.addData(exz=O.cell.trsf[0, 2], szz=stress[2, 2], sxz=abs(stress[0, 2]), tanPhi=(stress[0, 2] / stress[2, 2]) if stress[2, 2] != 0 else 0, i=O.iter)
+	plot.addData(exz=O.cell.trsf[0, 2], szz=stress[2, 2], sxz=abs(stress[0, 2]), tanPhi=(stress[0, 2] / stress[2, 2]) if stress[2, 2] != 0 else 0, i=O.iter,cellvel = O.cell.velGrad)
 	# Colore partículas baseada no quanto rotacionou
 	for b in O.bodies:
 		# rot() dá  o vetor de rotação entre  a referência e a posição atual.
@@ -138,4 +138,4 @@ Gl1_Sphere.stripes = True
 # Abre o plot na tela
 plot.plot()
 
-O.saveTmp()
+#O.saveTmp()
