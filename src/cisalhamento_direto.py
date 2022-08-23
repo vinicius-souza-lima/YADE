@@ -24,16 +24,18 @@ from yade import pack, plot
 tipo_enpacotamento = "regular"
 
 
-if tipo_enpacotamento == "nuvem de esferas":
+if tipo_enpacotamento == "regular":
+	# Nesse caso, adiciona empacotamento denso
+	O.bodies.append(pack.regularHexa(pack.inAlignedBox((0, 0, 0), (2, 2, 2)), radius=.08, gap=0, color=(0, 0, 1)))
+
+elif tipo_enpacotamento == "nuvem de esferas":
+
 	# cria nuvem de esferas e insere-as na simulação
 	# Damos os cantos, raio médio, variação do raio
 	sp = pack.SpherePack()
-	sp.makeCloud((0, 0, 0), (2, 2, 2), rMean=.1, rRelFuzz=.6, periodic=True)
+	sp.makeCloud((0, 0, 0), (2, 2, 2), rMean=.1, rRelFuzz=.3, periodic=True)
 	# insere o empacotamento na simulação
 	sp.toSimulation(color=(0, 0, 1))  # azul puro
-elif tipo_enpacotamento == "regular":
-	# Nesse caso, adiciona empacotamento denso
-	O.bodies.append(pack.regularHexa(pack.inAlignedBox((0, 0, 0), (2, 2, 2)), radius=.1, gap=0, color=(0, 0, 1)))
 
 # cria empacotamento "denso" ao colocar atrito igual a zero inicialmente
 O.materials[0].frictionAngle = 0
@@ -86,8 +88,9 @@ def checkStress():
 		# (checkStress não será mais chamada)
 		checker.command = 'checkDistorsion()'
 		# bloqueia rotações de partículas para aumentar tanPhi, se desejado
-		# Desativado por padrão(para ativar mude para 'if 1')
-		if 0:
+		# Desativado por padrão(para ativar mude para false)
+		rotacoes_desligadas = False
+		if rotacoes_desligadas:
 			for b in O.bodies:
 				# bloqueia rotações em X,Y,Z, translações são livres
 				b.state.blockedDOFs = 'XYZ'
@@ -108,7 +111,7 @@ def checkDistorsion():
 	if abs(O.cell.trsf[0, 2]) > .5:
 		# Salva informação de addData(...) antes de exportar para um arquivo
 		# use O.tags['id'] para diferenciar execuções individuais de cada simulação
-		plot.saveDataTxt('simulations/'+ O.tags['id'] + '.txt')
+		plot.saveDataTxt('../simulations/'+ O.tags['id'] + '.txt')
 		# Sai do programa
 		#importa sys
 		#sys.exit(0) # Sem erro (0)
@@ -132,7 +135,7 @@ def addData():
 ## szz(exz), sxz(exz)
 ## tanPhi(i)
 # Note o espaço em 'i ' para que não seja reescrita a entrada i
-plot.plots = {'exz': ('sxz','szz'), 'i ': ('tanPhi')}
+plot.plots = {'exz': ('sxz'), 'i ': ('tanPhi')}
 
 # Melhor demonstração da rotação das partículas
 Gl1_Sphere.stripes = True
