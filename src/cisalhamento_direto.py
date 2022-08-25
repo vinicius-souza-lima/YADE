@@ -13,49 +13,51 @@
 
 # Configura o limite periódico
 from __future__ import print_function
-O.periodic = True
-O.cell.hSize = Matrix3(2, 0, 0, 
-					   0, 2, 0,
-					   0, 0, 2)
-
 from yade import pack, plot
+
+O.periodic = True
+O.cell.hSize = Matrix3(2, 0, 0,
+                       0, 2, 0,
+                       0, 0, 2)
+
 
 # Digite "regular" para  empacotamento heaxagonal regular, "nuvem de esferas" para nuvem de esferas aleatória.
 tipo_enpacotamento = "regular"
 
 
 if tipo_enpacotamento == "regular":
-	# Nesse caso, adiciona empacotamento denso
-	O.bodies.append(pack.regularHexa(pack.inAlignedBox((0, 0, 0), (2, 2, 2)), radius=.08, gap=0, color=(0, 0, 1)))
+    # Nesse caso, adiciona empacotamento denso
+    O.bodies.append(pack.regularHexa(pack.inAlignedBox(
+        (0, 0, 0), (2, 2, 2)), radius=.08, gap=0, color=(0, 0, 1)))
 
 elif tipo_enpacotamento == "nuvem de esferas":
 
-	# cria nuvem de esferas e insere-as na simulação
-	# Damos os cantos, raio médio, variação do raio
-	sp = pack.SpherePack()
-	sp.makeCloud((0, 0, 0), (2, 2, 2), rMean=.1, rRelFuzz=.3, periodic=True)
-	# insere o empacotamento na simulação
-	sp.toSimulation(color=(0, 0, 1))  # azul puro
+    # cria nuvem de esferas e insere-as na simulação
+    # Damos os cantos, raio médio, variação do raio
+    sp = pack.SpherePack()
+    sp.makeCloud((0, 0, 0), (2, 2, 2), rMean=.1, rRelFuzz=.3, periodic=True)
+    # insere o empacotamento na simulação
+    sp.toSimulation(color=(0, 0, 1))  # azul puro
 
 # cria empacotamento "denso" ao colocar atrito igual a zero inicialmente
 O.materials[0].frictionAngle = 0
 
 # Loop da simulação (vai rodar à cada passo)
 O.engines = [
-        ForceResetter(),
-        InsertionSortCollider([Bo1_Sphere_Aabb()]),
-        InteractionLoop(
-                # loop de interação
-                [Ig2_Sphere_Sphere_ScGeom()],
-                [Ip2_FrictMat_FrictMat_FrictPhys()],
-                [Law2_ScGeom_FrictPhys_CundallStrack()]
-        ),
-        NewtonIntegrator(damping=.4),
-        # Roda a função checkStress (definida abaixo) todo segundo
-        # O rótulo é arbitrário,  e é usado depois para se referir à engine
-        PyRunner(command='checkStress()', realPeriod=1, label='checker'),
-        # Grava informação para plotagem à cada 100 passos; Função addData é definida abaixo
-        PyRunner(command='addData()', iterPeriod=100)
+    ForceResetter(),
+    InsertionSortCollider([Bo1_Sphere_Aabb()]),
+    InteractionLoop(
+        # loop de interação
+        [Ig2_Sphere_Sphere_ScGeom()],
+        [Ip2_FrictMat_FrictMat_FrictPhys()],
+        [Law2_ScGeom_FrictPhys_CundallStrack()]
+    ),
+    NewtonIntegrator(damping=.4),
+    # Roda a função checkStress (definida abaixo) todo segundo
+    # O rótulo é arbitrário,  e é usado depois para se referir à engine
+    PyRunner(command='checkStress()', realPeriod=1, label='checker'),
+    # Grava informação para plotagem à cada 100 passos; Função addData é definida abaixo
+    PyRunner(command='addData()', iterPeriod=100)
 ]
 
 # Intervalo de tempo de integração igual à metade do intervalo de tempo crítico
@@ -63,9 +65,9 @@ O.dt = .5 * PWaveTimeStep()
 
 # Define a deformação isotrópica normal(taxa de deformação constante)
 # da célula periódica
-O.cell.velGrad = Matrix3( -.1,   0 ,   0 ,
-						  	0, -.1 ,   0 ,
-						    0,   0 , -.1)
+O.cell.velGrad = Matrix3(-.1,   0,   0,
+                         0, -.1,   0,
+                         0,   0, -.1)
 
 # quando parar a compressão isotrópica (usada dentro do checkStress)
 limitMeanStress = -5.95e5
@@ -73,67 +75,69 @@ limitMeanStress = -5.95e5
 
 # Chamada a cada segundo pela engine PyRunner
 def checkStress():
-	# Tensor de tensões como a soma de constribuições normais e tangentes
-	# Matrix3.Zero é o valor inicial para soma(...)
-	stress = getStress().trace() / 3.
-	tens_stress = sum(normalShearStressTensors(), Matrix3.Zero)
-	print('mean stress', stress)
-	# Se a tensão média é menor (maior em valor absoluto)  que limitMeanStress, começa o cisalhamento
-	if stress < limitMeanStress:
-		# Aplica deformação à taxa constante da célula periódica
-		O.cell.velGrad = Matrix3(0, 0, .1,
-								 0, 0, 0, 
-								 0, 0, 0)
-		# Muda a função chamada pela engine checadora
-		# (checkStress não será mais chamada)
-		checker.command = 'checkDistorsion()'
-		# bloqueia rotações de partículas para aumentar tanPhi, se desejado
-		# Desativado por padrão(para ativar mude para false)
-		rotacoes_desligadas = False
-		if rotacoes_desligadas:
-			for b in O.bodies:
-				# bloqueia rotações em X,Y,Z, translações são livres
-				b.state.blockedDOFs = 'XYZ'
-				# Para rotações se existirem, como blockedDOFs bloqueia aceleração apenas
-				b.state.angVel = (0, 0, 0)
-		# Coloca ângulo de fricção de volta à valor não-nulo
-		# tangensOfFrictionAngle é computado pelo Ip2_* functor do material
-		# Para futuros contatos mudar material (há apenas um material para todas as partículas)
-		O.materials[0].frictionAngle = .5  # radianos
-		# Para contatos existentes, coloca fricção de contato diretamente
-		for i in O.interactions:
-			i.phys.tangensOfFrictionAngle = tan(.5)
+    # Tensor de tensões como a soma de constribuições normais e tangentes
+    # Matrix3.Zero é o valor inicial para soma(...)
+    stress = getStress().trace() / 3.
+    tens_stress = sum(normalShearStressTensors(), Matrix3.Zero)
+    print('mean stress', stress)
+    # Se a tensão média é menor (maior em valor absoluto)  que limitMeanStress, começa o cisalhamento
+    if stress < limitMeanStress:
+        # Aplica deformação à taxa constante da célula periódica
+        O.cell.velGrad = Matrix3(0, 0, .1,
+                                 0, 0, 0,
+                                 0, 0, 0)
+        # Muda a função chamada pela engine checadora
+        # (checkStress não será mais chamada)
+        checker.command = 'checkDistorsion()'
+        # bloqueia rotações de partículas para aumentar tanPhi, se desejado
+        # Desativado por padrão(para ativar mude para false)
+        rotacoes_desligadas = False
+        if rotacoes_desligadas:
+            for b in O.bodies:
+                # bloqueia rotações em X,Y,Z, translações são livres
+                b.state.blockedDOFs = 'XYZ'
+                # Para rotações se existirem, como blockedDOFs bloqueia aceleração apenas
+                b.state.angVel = (0, 0, 0)
+        # Coloca ângulo de fricção de volta à valor não-nulo
+        # tangensOfFrictionAngle é computado pelo Ip2_* functor do material
+        # Para futuros contatos mudar material (há apenas um material para todas as partículas)
+        O.materials[0].frictionAngle = .5  # radianos
+        # Para contatos existentes, coloca fricção de contato diretamente
+        for i in O.interactions:
+            i.phys.tangensOfFrictionAngle = tan(.5)
 
 
 # Chama a engine checadora periodicamente, durante a fase de cisalhamento
 def checkDistorsion():
-	# Se o valor da distorsão é >.5, termina a execução; De outra forma, não faz nada.
-	if abs(O.cell.trsf[0, 2]) > .5:
-		# Salva informação de addData(...) antes de exportar para um arquivo
-		# use O.tags['id'] para diferenciar execuções individuais de cada simulação
-		plot.saveDataTxt('../simulations/'+ O.tags['id'] + '.txt')
-		# Sai do programa
-		#importa sys
-		#sys.exit(0) # Sem erro (0)
-		O.pause()
+    # Se o valor da distorsão é >.5, termina a execução; De outra forma, não faz nada.
+    if abs(O.cell.trsf[0, 2]) > .5:
+        # Salva informação de addData(...) antes de exportar para um arquivo
+        # use O.tags['id'] para diferenciar execuções individuais de cada simulação
+        plot.saveDataTxt(
+            '/home/vinicius/Documentos/ITA/Iniciação Científica/Tutoriais/YADE/simulations' + O.tags['id'] + '.txt')
+        # Sai do programa
+        # importa sys
+        # sys.exit(0) # Sem erro (0)
+        O.pause()
 
 
 # Chamado periodicamente para armazenar o histórico de informações
 def addData():
-	# Obtém o tensor de tensões (como uma matriz 3x3)
-	stress = sum(normalShearStressTensors(), Matrix3.Zero)
-	# Dá nomes aos valores que estamos interessados e os salva.
-	plot.addData(exz=O.cell.trsf[0, 2], szz=stress[2, 2], sxz=abs(stress[0, 2]), tanPhi=(stress[0, 2] / stress[2, 2]) if stress[2, 2] != 0 else 0, i=O.iter,cellvel = O.cell.velGrad)
-	# Colore partículas baseada no quanto rotacionou
-	for b in O.bodies:
-		# rot() dá  o vetor de rotação entre  a referência e a posição atual.
-		b.shape.color = scalarOnColorScale(b.state.rot().norm(), 0, pi / 2.)
+    # Obtém o tensor de tensões (como uma matriz 3x3)
+    stress = sum(normalShearStressTensors(), Matrix3.Zero)
+    # Dá nomes aos valores que estamos interessados e os salva.
+    plot.addData(exz=O.cell.trsf[0, 2], szz=stress[2, 2], sxz=abs(stress[0, 2]), tanPhi=(
+        stress[0, 2] / stress[2, 2]) if stress[2, 2] != 0 else 0, i=O.iter, cellvel=O.cell.velGrad)
+    # Colore partículas baseada no quanto rotacionou
+    for b in O.bodies:
+        # rot() dá  o vetor de rotação entre  a referência e a posição atual.
+        b.shape.color = scalarOnColorScale(b.state.rot().norm(), 0, pi / 2.)
 
 
 # define o que plotar (3 plots no total)
-## exz(i), [eixo y da esquerda, separado por None:] szz(i), sxz(i)
+# exz(i), [eixo y da esquerda, separado por None:] szz(i), sxz(i)
 ## szz(exz), sxz(exz)
-## tanPhi(i)
+# tanPhi(i)
 # Note o espaço em 'i ' para que não seja reescrita a entrada i
 plot.plots = {'exz': ('sxz'), 'i ': ('tanPhi')}
 
@@ -143,4 +147,4 @@ Gl1_Sphere.stripes = True
 # Abre o plot na tela
 plot.plot()
 
-#O.saveTmp()
+# O.saveTmp()
