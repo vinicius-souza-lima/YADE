@@ -22,22 +22,29 @@ O.cell.hSize = Matrix3(2, 0, 0,
 
 
 # Digite "regular" para  empacotamento heaxagonal regular, "nuvem de esferas" para nuvem de esferas aleatória.
-tipo_enpacotamento = "regular"
+tipo_enpacotamento = "nuvem de esferas"
 
 
 if tipo_enpacotamento == "regular":
     # Nesse caso, adiciona empacotamento denso
     O.bodies.append(pack.regularHexa(pack.inAlignedBox(
-        (0, 0, 0), (2, 2, 2)), radius=.08, gap=0, color=(0, 0, 1)))
+        (0, 0, 0), (2, 2, 2)), radius=.1, gap=0, color=(0, 0, 1)))
 
 elif tipo_enpacotamento == "nuvem de esferas":
 
     # cria nuvem de esferas e insere-as na simulação
     # Damos os cantos, raio médio, variação do raio
     sp = pack.SpherePack()
-    sp.makeCloud((0, 0, 0), (2, 2, 2), rMean=.1, rRelFuzz=.3, periodic=True)
+    sp.makeCloud((0, 0, 0), (2, 2, 2), rMean=.1, rRelFuzz=.05, periodic=True)
     # insere o empacotamento na simulação
     sp.toSimulation(color=(0, 0, 1))  # azul puro
+    
+elif tipo_enpacotamento == "nuvem de clumps":
+    # create packing from clumps
+	# configuration of one clump
+	c1 = pack.SpherePack([((0, 0, 0), .03333), ((.03, 0, 0), .017), ((0, .03, 0), .017)])
+	# make cloud using the configuration c1 (there could c2, c3, ...; selection between them would be random)
+	sp.makeClumpCloud((0, 0, 0), (2, 2, 2), [c1], rMean=.1, rRelFuzz=.3, periodic=True)
 
 # cria empacotamento "denso" ao colocar atrito igual a zero inicialmente
 O.materials[0].frictionAngle = 0
@@ -61,7 +68,7 @@ O.engines = [
 ]
 
 # Intervalo de tempo de integração igual à metade do intervalo de tempo crítico
-O.dt = .5 * PWaveTimeStep()
+O.dt = 0.5 * PWaveTimeStep()
 
 # Define a deformação isotrópica normal(taxa de deformação constante)
 # da célula periódica
@@ -70,7 +77,7 @@ O.cell.velGrad = Matrix3(-.1,   0,   0,
                          0,   0, -.1)
 
 # quando parar a compressão isotrópica (usada dentro do checkStress)
-limitMeanStress = -5.95e5
+limitMeanStress = -18.0e5
 
 
 # Chamada a cada segundo pela engine PyRunner
@@ -101,20 +108,20 @@ def checkStress():
         # Coloca ângulo de fricção de volta à valor não-nulo
         # tangensOfFrictionAngle é computado pelo Ip2_* functor do material
         # Para futuros contatos mudar material (há apenas um material para todas as partículas)
-        O.materials[0].frictionAngle = .5  # radianos
+        O.materials[0].frictionAngle =  0.5 # radianos
         # Para contatos existentes, coloca fricção de contato diretamente
         for i in O.interactions:
-            i.phys.tangensOfFrictionAngle = tan(.5)
+            i.phys.tangensOfFrictionAngle = tan(0.5)
 
 
 # Chama a engine checadora periodicamente, durante a fase de cisalhamento
 def checkDistorsion():
     # Se o valor da distorsão é >.5, termina a execução; De outra forma, não faz nada.
-    if abs(O.cell.trsf[0, 2]) > .5:
+    if abs(O.cell.trsf[0, 2]) > 1.:
         # Salva informação de addData(...) antes de exportar para um arquivo
         # use O.tags['id'] para diferenciar execuções individuais de cada simulação
         plot.saveDataTxt(
-            '/home/vinicius/Documentos/ITA/Iniciação Científica/Tutoriais/YADE/simulations' + O.tags['id'] + '.txt')
+            '/home/vinicius/Documentos/ITA/Iniciação Científica/Tutoriais/YADE/simulations/' + O.tags['id'] + '.txt')
         # Sai do programa
         # importa sys
         # sys.exit(0) # Sem erro (0)
@@ -126,8 +133,8 @@ def addData():
     # Obtém o tensor de tensões (como uma matriz 3x3)
     stress = sum(normalShearStressTensors(), Matrix3.Zero)
     # Dá nomes aos valores que estamos interessados e os salva.
-    plot.addData(exz=O.cell.trsf[0, 2], szz=stress[2, 2], sxz=abs(stress[0, 2]), tanPhi=(
-        stress[0, 2] / stress[2, 2]) if stress[2, 2] != 0 else 0, i=O.iter, cellvel=O.cell.velGrad)
+    plot.addData(exz=O.cell.trsf[0, 2],ezz=O.cell.trsf[2,2], szz=stress[2, 2], sxz=abs(stress[0, 2]),tens_media = getStress().trace() / 3., tanPhi=(
+        stress[0, 2] / stress[2, 2]) if stress[2, 2] != 0 else 0, i=O.iter)
     # Colore partículas baseada no quanto rotacionou
     for b in O.bodies:
         # rot() dá  o vetor de rotação entre  a referência e a posição atual.
@@ -139,7 +146,7 @@ def addData():
 ## szz(exz), sxz(exz)
 # tanPhi(i)
 # Note o espaço em 'i ' para que não seja reescrita a entrada i
-plot.plots = {'exz': ('sxz'), 'i ': ('tanPhi')}
+plot.plots = {'exz': ('sxz','szz'), 'exz ': ('ezz')}
 
 # Melhor demonstração da rotação das partículas
 Gl1_Sphere.stripes = True

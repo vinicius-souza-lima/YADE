@@ -32,7 +32,7 @@ O.engines = [
 ]
 
 from yade import plot
-plot.plots={'t':('h')}                # kinetic energy will have legend on the right as indicated by None separator.
+
 # Periodic storing of data is done with PyRunner and the plot.addData function. Also let’s enable energy tracking:
 
 O.trackEnergy=True
@@ -51,7 +51,11 @@ O.engines+=[PyRunner(command='addPlotData()',iterPeriod=20)]
 # set timestep to a fraction of the critical timestep
 # the fraction is very small, so that the simulation is not too fast
 # and the motion can be observed
-O.dt = .5e-4 * PWaveTimeStep()
+O.dt = .5e-3 * PWaveTimeStep()
+
+plot.plots={'t':('h'),'t ':('Ek')}                # kinetic energy will have legend on the right as indicated by None separator.
+# Abre o plot na tela
+plot.plot()
 
 # save the simulation, so that it can be reloaded later, for experimentation
 O.saveTmp()
