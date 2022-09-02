@@ -22,7 +22,7 @@ O.cell.hSize = Matrix3(2, 0, 0,
 
 
 # Digite "regular" para  empacotamento heaxagonal regular, "nuvem de esferas" para nuvem de esferas aleatória.
-tipo_enpacotamento = "nuvem de esferas"
+tipo_enpacotamento = "regular"
 
 
 if tipo_enpacotamento == "regular":
@@ -38,13 +38,16 @@ elif tipo_enpacotamento == "nuvem de esferas":
     sp.makeCloud((0, 0, 0), (2, 2, 2), rMean=.1, rRelFuzz=.05, periodic=True)
     # insere o empacotamento na simulação
     sp.toSimulation(color=(0, 0, 1))  # azul puro
-    
+
 elif tipo_enpacotamento == "nuvem de clumps":
     # create packing from clumps
-	# configuration of one clump
-	c1 = pack.SpherePack([((0, 0, 0), .03333), ((.03, 0, 0), .017), ((0, .03, 0), .017)])
-	# make cloud using the configuration c1 (there could c2, c3, ...; selection between them would be random)
-	sp.makeClumpCloud((0, 0, 0), (2, 2, 2), [c1], rMean=.1, rRelFuzz=.3, periodic=True)
+    # configuration of one clump
+    c1 = pack.SpherePack(
+        [((0, 0, 0), .03333), ((.03, 0, 0), .017), ((0, .03, 0), .017)])
+    # make cloud using the configuration c1 (there could c2, c3, ...; selection between them would be random)
+    sp = pack.SpherePack()
+    sp.makeClumpCloud((0, 0, 0), (2, 2, 2), [
+                      c1],num = 100)
 
 # cria empacotamento "denso" ao colocar atrito igual a zero inicialmente
 O.materials[0].frictionAngle = 0
@@ -77,7 +80,7 @@ O.cell.velGrad = Matrix3(-.1,   0,   0,
                          0,   0, -.1)
 
 # quando parar a compressão isotrópica (usada dentro do checkStress)
-limitMeanStress = -18.0e5
+limitMeanStress = -6.0e5
 
 
 # Chamada a cada segundo pela engine PyRunner
@@ -108,7 +111,7 @@ def checkStress():
         # Coloca ângulo de fricção de volta à valor não-nulo
         # tangensOfFrictionAngle é computado pelo Ip2_* functor do material
         # Para futuros contatos mudar material (há apenas um material para todas as partículas)
-        O.materials[0].frictionAngle =  0.5 # radianos
+        O.materials[0].frictionAngle = 0.5  # radianos
         # Para contatos existentes, coloca fricção de contato diretamente
         for i in O.interactions:
             i.phys.tangensOfFrictionAngle = tan(0.5)
@@ -133,7 +136,7 @@ def addData():
     # Obtém o tensor de tensões (como uma matriz 3x3)
     stress = sum(normalShearStressTensors(), Matrix3.Zero)
     # Dá nomes aos valores que estamos interessados e os salva.
-    plot.addData(exz=O.cell.trsf[0, 2],ezz=O.cell.trsf[2,2], szz=stress[2, 2], sxz=abs(stress[0, 2]),tens_media = getStress().trace() / 3., tanPhi=(
+    plot.addData(exz=O.cell.trsf[0, 2], ezz=O.cell.trsf[2, 2], szz=stress[2, 2], sxz=abs(stress[0, 2]), tens_media=getStress().trace() / 3., tanPhi=(
         stress[0, 2] / stress[2, 2]) if stress[2, 2] != 0 else 0, i=O.iter)
     # Colore partículas baseada no quanto rotacionou
     for b in O.bodies:
@@ -146,7 +149,7 @@ def addData():
 ## szz(exz), sxz(exz)
 # tanPhi(i)
 # Note o espaço em 'i ' para que não seja reescrita a entrada i
-plot.plots = {'exz': ('sxz','szz'), 'exz ': ('ezz')}
+plot.plots = {'exz': ('sxz', 'szz'), 'exz ': ('ezz')}
 
 # Melhor demonstração da rotação das partículas
 Gl1_Sphere.stripes = True
